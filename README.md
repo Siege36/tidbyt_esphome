@@ -1,6 +1,6 @@
 # 📺 Tidbyt ESPHome Display
 
-An ESP32-powered RGB LED matrix display inspired by the Tidbyt, integrated into Home Assistant. It features dynamic scrolling text, album art visualization, and real-time weather/time synchronization.
+An ESPHome config for the Tidbyt Gen2. It features dynamic scrolling text, album art, and real-time weather/time synchronization.
 
 ---
 
@@ -14,12 +14,15 @@ Use this service to push metadata from your media players (Spotify, Apple Music,
 | `title` | string | The song name (auto-capitalized on device). |
 | `artist` | string | The artist name (auto-capitalized on device). |
 | `album` | string | The album name. |
-| `image_path` | string | URL for the 17x17 album art. |
+| `image_path` | string | URL for the album art. |
 | `is_playing` | boolean | If `true`, switches display to "Now Playing" mode. |
 
 ---
 
-## 🎨 Available Entities
+## Personal Configuration ##
+Be sure to adjust your device encryption key as well as your weather entity before compiling.
+
+## Available Entities
 
 ### Color Choosers (Light Entities)
 Each line of text is exposed as an RGB light. Adjust the color wheel in Home Assistant to change the display in real-time.
@@ -41,18 +44,7 @@ Each line of text is exposed as an RGB light. Adjust the color wheel in Home Ass
 
 ---
 
-## 🔌 Hardware Pinout (ESP32 DevKit V1)
-
-
-
-| Matrix Pin | ESP32 GPIO | Function |
-| :--- | :--- | :--- |
-| **R1 / G1 / B1** | 5 / 23 / 4 | Top Panel Data |
-| **R2 / G2 / B2** | 2 / 22 / 32 | Bottom Panel Data |
-| **A / B / C / D** | 25 / 21 / 26 / 19 | Row Selection |
-| **LAT / OE / CLK**| 18 / 27 / 15 | Latch / Enable / Clock |
-| **Touch Sensor** | 33 | Mode Toggle |
-| **I2S Audio** | 13 (LRCLK), 12 (BCLK), 14 (DOUT) | Speaker Output |
+Thanks to [jon_2233](https://community.home-assistant.io/u/jon_2232/summary) and his post [here](https://community.home-assistant.io/t/esphome-on-tidbyt-gen-2/830367) for hardware info.
 
 ---
 
