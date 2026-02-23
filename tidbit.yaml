@@ -1,0 +1,403 @@
+esphome:
+  name: tidbyt
+  friendly_name: tidbyt
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+psram:
+
+globals:
+  # Now Playing Info
+  - id: current_media_title
+    type: std::string
+    initial_value: '""'
+  - id: current_media_artist
+    type: std::string
+    initial_value: '""'
+  - id: current_media_album
+    type: std::string
+    initial_value: '""'
+  - id: current_media_active
+    type: bool
+    initial_value: 'false'
+  # Scroll and Bounds Tracking
+  - id: s_title
+    type: int
+    initial_value: "0"
+  - id: s_artist
+    type: int
+    initial_value: "22"
+  - id: s_album
+    type: int
+    initial_value: "22"
+  - id: w_title
+    type: int
+    initial_value: "0"
+  - id: w_artist
+    type: int
+    initial_value: "0"
+  - id: w_album
+    type: int
+    initial_value: "0"
+  - id: h_title
+    type: int
+    initial_value: "80"
+  - id: h_artist
+    type: int
+    initial_value: "80"
+  - id: h_album
+    type: int
+    initial_value: "80"
+  - id: s_weather
+    type: int
+    initial_value: "0"
+  - id: w_weather
+    type: int
+    initial_value: "0"
+  - id: h_weather
+    type: int
+    initial_value: "80"
+  - id: s_alert
+    type: int
+    initial_value: "64"
+  - id: w_alert
+    type: int
+    initial_value: "0"
+
+logger:
+
+api:
+  encryption:
+    key: {{ YOUR_KEY }}
+  services:
+    - service: update_media
+      variables:
+        title: string
+        artist: string
+        album: string
+        image_path: string
+        is_playing: bool
+      then:
+        - lambda: |-
+            id(current_media_title) = title;
+            for (auto & c: id(current_media_title)) c = toupper(c);
+            id(current_media_artist) = artist;
+            for (auto & c: id(current_media_artist)) c = toupper(c);
+            id(current_media_album) = album;
+            id(current_media_active) = is_playing;
+
+            id(s_title) = 0;   id(w_title) = 0;  id(h_title) = 80;
+            id(s_artist) = 22; id(w_artist) = 0; id(h_artist) = 80;
+            id(s_album) = 22;  id(w_album) = 0;  id(h_album) = 80;
+
+            if (image_path.length() > 0) {
+              id(album_art_small).set_url(image_path);
+              id(album_art_small).update();
+            }
+            
+            auto call = id(display_mode).make_call();
+            if (is_playing) {
+              call.set_option("Now Playing");
+            } else if (id(display_mode).current_option() == "Now Playing") {
+              call.set_option("Clock");
+            }
+            call.perform();
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+http_request:
+  timeout: 20s
+
+i2s_audio:
+  - i2s_lrclk_pin: GPIO13
+    i2s_bclk_pin: GPIO12
+
+speaker:
+  - platform: i2s_audio
+    id: tidbyt_speaker_out
+    i2s_dout_pin: GPIO14
+    dac_type: external
+
+media_player:
+  - platform: speaker
+    name: "Tidbyt Speaker"
+    announcement_pipeline:
+      speaker: tidbyt_speaker_out
+
+esp32_touch:
+  setup_mode: false
+
+binary_sensor:
+  - platform: esp32_touch
+    name: "Tidbyt Mode Touch"
+    id: tidbyt_touch
+    pin: GPIO33
+    threshold: 1200
+    on_press:
+      then:
+        - lambda: |-
+            auto call = id(display_mode).make_call();
+            if (id(display_mode).current_option() == "Clock") call.set_option("Weather");
+            else if (id(display_mode).current_option() == "Weather") call.set_option("Now Playing");
+            else call.set_option("Clock");
+            call.perform();
+
+online_image:
+  - url: "https://placehold.co/17x17.jpg"
+    id: album_art_small
+    format: JPEG
+    type: RGB565 
+    resize: 17x17
+    request_headers:
+      Authorization: !secret ha_token
+    on_download_finished:
+      component.update: matrix
+
+switch:
+  - platform: template
+    name: "Display Power"
+    id: display_power
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      then:
+        - hub75.set_brightness:
+            id: matrix
+            brightness: !lambda "return (int)id(matrix_brightness).state;"
+
+select:
+  - platform: template
+    name: "Display Mode"
+    id: display_mode
+    options: ["Clock", "Weather", "Now Playing"]
+    initial_option: "Clock"
+    optimistic: true
+    restore_value: true
+
+# Dummy output to allow RGB light entities without physical LEDs
+output:
+  - platform: template
+    id: dummy_out
+    type: float
+    write_action:
+      - lambda: ';'
+
+light:
+  - platform: rgb
+    name: "Track Title Color"
+    id: light_title
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: rgb
+    name: "Artist Color"
+    id: light_artist
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: rgb
+    name: "Album Color"
+    id: light_album
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: rgb
+    name: "Clock Color"
+    id: light_clock
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: rgb
+    name: "Weather Color"
+    id: light_weather
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: rgb
+    name: "Alert Color"
+    id: light_alert
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+
+number:
+  - platform: template
+    name: "Tidbyt Scroll Speed"
+    id: scroll_speed_ms
+    min_value: 0
+    max_value: 50
+    step: 1
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+  - platform: template
+    name: "Brightness"
+    id: matrix_brightness
+    max_value: 255
+    min_value: 0
+    step: 5
+    initial_value: 200
+    optimistic: true
+    on_value:
+      then:
+        - if:
+            condition: { switch.is_on: display_power }
+            then:
+              - hub75.set_brightness:
+                  id: matrix
+                  brightness: !lambda "return (int)x;"
+
+text:
+  - platform: template
+    name: "Alert Message"
+    id: device_alert_message
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    on_value:
+      then:
+        - lambda: |-
+            id(s_alert) = 64; 
+            id(w_alert) = 0;
+
+text_sensor:
+  - platform: homeassistant
+    id: weather_summary
+    entity_id: sensor.pirateweather_summary
+    internal: true
+
+sensor:
+  - platform: homeassistant
+    id: current_temp
+    entity_id: weather.forecast_home
+    attribute: temperature
+    internal: true
+  - platform: internal_temperature
+    name: "Tidbyt Internal Temp"
+  - platform: wifi_signal
+    name: "Tidbyt WiFi Signal"
+    update_interval: 60s
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "America/Chicago" 
+
+font:
+  - file: {type: gfonts, family: Roboto, weight: 800}
+    id: font_huge
+    size: 18
+  - file: {type: gfonts, family: Roboto, weight: 500}
+    id: font_medium
+    size: 13
+  - file: {type: gfonts, family: Roboto, weight: 500}
+    id: font_mini
+    size: 10
+
+display:
+  - platform: hub75
+    panel_width: 64
+    panel_height: 32
+    id: matrix
+    clock_speed: 8MHZ
+    bit_depth: 4
+    latch_blanking: 4
+    clock_phase: False
+    shift_driver: FM6126A
+    r1_pin: 5
+    g1_pin: 23
+    b1_pin: 4
+    r2_pin: 2
+    g2_pin: 22
+    b2_pin: 32
+    a_pin: 25
+    b_pin: 21
+    c_pin: 26
+    d_pin: 19
+    lat_pin: 18
+    oe_pin: 27
+    clk_pin: 15
+    update_interval: 16ms
+    lambda: !lambda |-
+      if (!id(display_power).state) {
+        it.fill(Color(0,0,0));
+        return;
+      }
+
+      auto get_light_color = [](light::LightState* l) {
+        auto v = l->remote_values;
+        return Color(v.get_red()*255, v.get_green()*255, v.get_blue()*255);
+      };
+
+      static uint32_t last_scroll = 0;
+      uint32_t now = millis();
+      bool update_tick = (now - last_scroll > (uint32_t)id(scroll_speed_ms).state);
+      if (update_tick) last_scroll = now;
+
+      // --- ALERT ---
+      std::string alert = id(device_alert_message).state;
+      if (alert.length() > 0) {
+        int x, y, h;
+        if (id(w_alert) == 0) it.get_text_bounds(0, 0, alert.c_str(), id(font_huge), TextAlign::LEFT, &x, &y, &id(w_alert), &h);
+        if (id(w_alert) <= 64) it.print(32, 16, id(font_huge), get_light_color(id(light_alert)), TextAlign::CENTER, alert.c_str());
+        else {
+          it.print(id(s_alert), 16, id(font_huge), get_light_color(id(light_alert)), TextAlign::CENTER_VERTICAL, alert.c_str());
+          if (update_tick) { id(s_alert)--; if (id(s_alert) < -id(w_alert)) id(s_alert) = 64; }
+        }
+        return;
+      }
+
+      // --- WEATHER ---
+      if (id(display_mode).current_option() == "Weather") {
+        it.printf(32, 11, id(font_medium), get_light_color(id(light_weather)), TextAlign::CENTER, "%.0f°", id(current_temp).state);
+        int x, y, h;
+        it.get_text_bounds(0, 0, id(weather_summary).state.c_str(), id(font_mini), TextAlign::LEFT, &x, &y, &id(w_weather), &h);
+        if (id(w_weather) <= 64) it.print(32, 23, id(font_mini), get_light_color(id(light_album)), TextAlign::CENTER, id(weather_summary).state.c_str());
+        else {
+          it.print(id(s_weather), 23, id(font_mini), get_light_color(id(light_album)), id(weather_summary).state.c_str());
+          if (update_tick) { if (id(h_weather) > 0) id(h_weather)--; else { id(s_weather)--; if (id(s_weather) < -id(w_weather)) id(s_weather) = 64; if (id(s_weather) == 0) id(h_weather) = 80; } }
+        }
+      }
+      
+      // --- CLOCK ---
+      else if (id(display_mode).current_option() == "Clock") {
+        it.strftime(32, 16, id(font_huge), get_light_color(id(light_clock)), TextAlign::CENTER, "%I:%M", id(sntp_time).now());
+      }
+      
+      // --- NOW PLAYING ---
+      else if (id(display_mode).current_option() == "Now Playing" && id(current_media_active)) {
+        int x, y, w, h;
+        if (id(current_media_title).length() > 0) {
+          if (id(w_title) == 0) it.get_text_bounds(0, 0, id(current_media_title).c_str(), id(font_medium), TextAlign::LEFT, &x, &y, &id(w_title), &h);
+          it.print(id(s_title), -2, id(font_medium), get_light_color(id(light_title)), id(current_media_title).c_str());
+          if (update_tick) { if (id(h_title) > 0) id(h_title)--; else { id(s_title)--; if (id(s_title) < -id(w_title)) id(s_title) = 64; if (id(s_title) == 0) id(h_title) = 80; } }
+        }
+        it.image(2, 14, id(album_art_small)); 
+        it.start_clipping(22, 11, 64, 32); 
+        if (id(current_media_artist).length() > 0) {
+          if (id(w_artist) == 0) it.get_text_bounds(0, 0, id(current_media_artist).c_str(), id(font_mini), TextAlign::LEFT, &x, &y, &id(w_artist), &h);
+          it.print(id(s_artist), 11, id(font_mini), get_light_color(id(light_artist)), id(current_media_artist).c_str());
+          if (update_tick) { if (id(h_artist) > 0) id(h_artist)--; else { id(s_artist)--; if (id(s_artist) < (22 - id(w_artist))) id(s_artist) = 64; if (id(s_artist) == 22) id(h_artist) = 80; } }
+        }
+        if (id(current_media_album).length() > 0) {
+          if (id(w_album) == 0) it.get_text_bounds(0, 0, id(current_media_album).c_str(), id(font_mini), TextAlign::LEFT, &x, &y, &id(w_album), &h);
+          it.print(id(s_album), 21, id(font_mini), get_light_color(id(light_album)), id(current_media_album).c_str());
+          if (update_tick) { if (id(h_album) > 0) id(h_album)--; else { id(s_album)--; if (id(s_album) < (22 - id(w_album))) id(s_album) = 64; if (id(s_album) == 22) id(h_album) = 80; } }
+        }
+        it.end_clipping();
+      }
