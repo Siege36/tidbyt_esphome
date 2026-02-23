@@ -1,10 +1,10 @@
-# 📺 Tidbyt ESPHome Display
+# Tidbyt ESPHome Display
 
 An ESPHome config for the Tidbyt Gen2. It features dynamic scrolling text, album art, and real-time weather/time synchronization.
 
 ---
 
-## 🛠 Home Assistant Services
+## Home Assistant Services
 
 ### `esphome.tidbyt_update_media`
 Use this service to push metadata from your media players (Spotify, Apple Music, etc.) to the display.
@@ -48,7 +48,7 @@ Thanks to [jon_2233](https://community.home-assistant.io/u/jon_2232/summary) and
 
 ---
 
-## 🤖 Automations
+## Automations
 
 ### Spotify Sync Example
 ```yaml
