@@ -4,23 +4,14 @@ An ESPHome config for the Tidbyt Gen2. It features dynamic scrolling text, album
 
 ---
 
-## Home Assistant Services
-
-### `esphome.tidbyt_update_media`
-Use this service to push metadata from your media players (Spotify, Apple Music, etc.) to the display.
-
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `title` | string | The song name (auto-capitalized on device). |
-| `artist` | string | The artist name (auto-capitalized on device). |
-| `album` | string | The album name. |
-| `image_path` | string | URL for the album art. |
-| `is_playing` | boolean | If `true`, switches display to "Now Playing" mode. |
+Thanks to [jon_2233](https://community.home-assistant.io/u/jon_2232/summary) and his post [here](https://community.home-assistant.io/t/esphome-on-tidbyt-gen-2/830367) for hardware info.
 
 ---
 
 ## Personal Configuration ##
 Be sure to adjust your device encryption key as well as your weather entity before compiling.
+
+---
 
 ## Available Entities
 
@@ -42,9 +33,22 @@ Each line of text is exposed as an RGB light. Adjust the color wheel in Home Ass
 * **text.alert_message**: Enter text here to override the screen with a scrolling alert.
 * **binary_sensor.tidbyt_mode_touch**: Reflects the state of the physical touch sensor.
 
+
+
 ---
 
-Thanks to [jon_2233](https://community.home-assistant.io/u/jon_2232/summary) and his post [here](https://community.home-assistant.io/t/esphome-on-tidbyt-gen-2/830367) for hardware info.
+## Home Assistant Services
+
+### `esphome.tidbyt_update_media`
+Use this service to push metadata from your media players (Spotify, Apple Music, etc.) to the display.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `title` | string | The song name (auto-capitalized on device). |
+| `artist` | string | The artist name (auto-capitalized on device). |
+| `album` | string | The album name. |
+| `image_path` | string | URL for the album art. |
+| `is_playing` | boolean | If `true`, switches display to "Now Playing" mode. |
 
 ---
 
