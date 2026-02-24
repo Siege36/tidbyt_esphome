@@ -10,7 +10,6 @@ esp32:
 psram:
 
 globals:
-  # Now Playing Info
   - id: current_media_title
     type: std::string
     initial_value: '""'
@@ -71,7 +70,7 @@ logger:
 
 api:
   encryption:
-    key: {{ YOUR_KEY }}
+    key: "p4L/rMBS8NVCeADQU02tCLwizRsyva1ZnUJjOLceMhk="
   services:
     - service: update_media
       variables:
@@ -192,42 +191,49 @@ output:
 
 light:
   - platform: rgb
-    name: "Track Title Color"
+    name: "Color: Now Playing - Title"
     id: light_title
     red: dummy_out
     green: dummy_out
     blue: dummy_out
     restore_mode: RESTORE_DEFAULT_ON
   - platform: rgb
-    name: "Artist Color"
+    name: "Color: Now Playing - Artist"
     id: light_artist
     red: dummy_out
     green: dummy_out
     blue: dummy_out
     restore_mode: RESTORE_DEFAULT_ON
   - platform: rgb
-    name: "Album Color"
+    name: "Color: Now Playing - Album"
     id: light_album
     red: dummy_out
     green: dummy_out
     blue: dummy_out
     restore_mode: RESTORE_DEFAULT_ON
   - platform: rgb
-    name: "Clock Color"
+    name: "Color: Clock"
     id: light_clock
     red: dummy_out
     green: dummy_out
     blue: dummy_out
     restore_mode: RESTORE_DEFAULT_ON
   - platform: rgb
-    name: "Weather Color"
+    name: "Color: Weather - Temperature"
     id: light_weather
     red: dummy_out
     green: dummy_out
     blue: dummy_out
     restore_mode: RESTORE_DEFAULT_ON
   - platform: rgb
-    name: "Alert Color"
+    name: "Color: Weather - Summary"
+    id: light_weather_summary
+    red: dummy_out
+    green: dummy_out
+    blue: dummy_out
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: rgb
+    name: "Color: Alert"
     id: light_alert
     red: dummy_out
     green: dummy_out
@@ -299,14 +305,30 @@ time:
     timezone: "America/Chicago" 
 
 font:
-  - file: {type: gfonts, family: Roboto, weight: 800}
-    id: font_huge
+  # Clock
+  - file: {type: gfonts, family: Inter, weight: 500}
+    id: clock_font
+    size: 20
+  # Alert
+  - file: {type: gfonts, family: Inter, weight: 800}
+    id: alert_font
     size: 18
-  - file: {type: gfonts, family: Roboto, weight: 500}
-    id: font_medium
-    size: 13
-  - file: {type: gfonts, family: Roboto, weight: 500}
-    id: font_mini
+  # Weather
+  - file: {type: gfonts, family: Inter, weight: 600}
+    id: weather_temp_font
+    size: 16
+  - file: {type: gfonts, family: Inter, weight: 300}
+    id: weather_summary_font
+    size: 10
+  # Now Playing
+  - file: {type: gfonts, family: Inter, weight: 300}
+    id: now_playing_title
+    size: 12
+  - file: {type: gfonts, family: Inter, weight: 300}
+    id: now_playing_artist
+    size: 10
+  - file: {type: gfonts, family: Inter, weight: 300}
+    id: now_playing_album
     size: 10
 
 display:
@@ -329,7 +351,7 @@ display:
     b_pin: 21
     c_pin: 26
     d_pin: 19
-    lat_pin: 18
+    lat_pin: 18 
     oe_pin: 27
     clk_pin: 15
     update_interval: 16ms
@@ -341,7 +363,12 @@ display:
 
       auto get_light_color = [](light::LightState* l) {
         auto v = l->remote_values;
-        return Color(v.get_red()*255, v.get_green()*255, v.get_blue()*255);
+        float b = v.get_brightness(); // This captures the brightness slider
+        return Color(
+          (uint8_t)(v.get_red() * 255 * b),
+          (uint8_t)(v.get_green() * 255 * b),
+          (uint8_t)(v.get_blue() * 255 * b)
+        );
       };
 
       static uint32_t last_scroll = 0;
@@ -353,10 +380,10 @@ display:
       std::string alert = id(device_alert_message).state;
       if (alert.length() > 0) {
         int x, y, h;
-        if (id(w_alert) == 0) it.get_text_bounds(0, 0, alert.c_str(), id(font_huge), TextAlign::LEFT, &x, &y, &id(w_alert), &h);
-        if (id(w_alert) <= 64) it.print(32, 16, id(font_huge), get_light_color(id(light_alert)), TextAlign::CENTER, alert.c_str());
+        if (id(w_alert) == 0) it.get_text_bounds(0, 0, alert.c_str(), id(alert_font), TextAlign::LEFT, &x, &y, &id(w_alert), &h);
+        if (id(w_alert) <= 64) it.print(32, 16, id(alert_font), get_light_color(id(light_alert)), TextAlign::CENTER, alert.c_str());
         else {
-          it.print(id(s_alert), 16, id(font_huge), get_light_color(id(light_alert)), TextAlign::CENTER_VERTICAL, alert.c_str());
+          it.print(id(s_alert), 16, id(alert_font), get_light_color(id(light_alert)), TextAlign::CENTER_VERTICAL, alert.c_str());
           if (update_tick) { id(s_alert)--; if (id(s_alert) < -id(w_alert)) id(s_alert) = 64; }
         }
         return;
@@ -364,39 +391,49 @@ display:
 
       // --- WEATHER ---
       if (id(display_mode).current_option() == "Weather") {
-        it.printf(32, 11, id(font_medium), get_light_color(id(light_weather)), TextAlign::CENTER, "%.0f°", id(current_temp).state);
+        it.printf(32, 10, id(weather_temp_font), get_light_color(id(light_weather)), TextAlign::CENTER, "%.0f°", id(current_temp).state);
         int x, y, h;
-        it.get_text_bounds(0, 0, id(weather_summary).state.c_str(), id(font_mini), TextAlign::LEFT, &x, &y, &id(w_weather), &h);
-        if (id(w_weather) <= 64) it.print(32, 23, id(font_mini), get_light_color(id(light_album)), TextAlign::CENTER, id(weather_summary).state.c_str());
-        else {
-          it.print(id(s_weather), 23, id(font_mini), get_light_color(id(light_album)), id(weather_summary).state.c_str());
-          if (update_tick) { if (id(h_weather) > 0) id(h_weather)--; else { id(s_weather)--; if (id(s_weather) < -id(w_weather)) id(s_weather) = 64; if (id(s_weather) == 0) id(h_weather) = 80; } }
+        it.get_text_bounds(0, 0, id(weather_summary).state.c_str(), id(weather_summary_font), TextAlign::LEFT, &x, &y, &id(w_weather), &h);
+        
+        if (id(w_weather) <= 64) {
+          it.print(32, 18, id(weather_summary_font), get_light_color(id(light_weather_summary)), TextAlign::CENTER, id(weather_summary).state.c_str());
+        } else {
+          it.print(id(s_weather), 18, id(weather_summary_font), get_light_color(id(light_weather_summary)), id(weather_summary).state.c_str());
+          if (update_tick) { 
+            if (id(h_weather) > 0) id(h_weather)--; 
+            else { 
+              id(s_weather)--; 
+              if (id(s_weather) < -id(w_weather)) id(s_weather) = 64; 
+              if (id(s_weather) == 0) id(h_weather) = 80; 
+            } 
+          }
         }
       }
       
       // --- CLOCK ---
       else if (id(display_mode).current_option() == "Clock") {
-        it.strftime(32, 16, id(font_huge), get_light_color(id(light_clock)), TextAlign::CENTER, "%I:%M", id(sntp_time).now());
+        it.strftime(32, 16, id(clock_font), get_light_color(id(light_clock)), TextAlign::CENTER, "%I:%M", id(sntp_time).now());
       }
       
       // --- NOW PLAYING ---
       else if (id(display_mode).current_option() == "Now Playing" && id(current_media_active)) {
         int x, y, w, h;
         if (id(current_media_title).length() > 0) {
-          if (id(w_title) == 0) it.get_text_bounds(0, 0, id(current_media_title).c_str(), id(font_medium), TextAlign::LEFT, &x, &y, &id(w_title), &h);
-          it.print(id(s_title), -2, id(font_medium), get_light_color(id(light_title)), id(current_media_title).c_str());
+          if (id(w_title) == 0) it.get_text_bounds(0, 0, id(current_media_title).c_str(), id(now_playing_title), TextAlign::LEFT, &x, &y, &id(w_title), &h);
+          
+          it.print(id(s_title), -1, id(now_playing_title), get_light_color(id(light_title)), id(current_media_title).c_str());
           if (update_tick) { if (id(h_title) > 0) id(h_title)--; else { id(s_title)--; if (id(s_title) < -id(w_title)) id(s_title) = 64; if (id(s_title) == 0) id(h_title) = 80; } }
         }
         it.image(2, 14, id(album_art_small)); 
         it.start_clipping(22, 11, 64, 32); 
         if (id(current_media_artist).length() > 0) {
-          if (id(w_artist) == 0) it.get_text_bounds(0, 0, id(current_media_artist).c_str(), id(font_mini), TextAlign::LEFT, &x, &y, &id(w_artist), &h);
-          it.print(id(s_artist), 11, id(font_mini), get_light_color(id(light_artist)), id(current_media_artist).c_str());
+          if (id(w_artist) == 0) it.get_text_bounds(0, 0, id(current_media_artist).c_str(), id(now_playing_artist), TextAlign::LEFT, &x, &y, &id(w_artist), &h);
+          it.print(id(s_artist), 11, id(now_playing_artist), get_light_color(id(light_artist)), id(current_media_artist).c_str());
           if (update_tick) { if (id(h_artist) > 0) id(h_artist)--; else { id(s_artist)--; if (id(s_artist) < (22 - id(w_artist))) id(s_artist) = 64; if (id(s_artist) == 22) id(h_artist) = 80; } }
         }
         if (id(current_media_album).length() > 0) {
-          if (id(w_album) == 0) it.get_text_bounds(0, 0, id(current_media_album).c_str(), id(font_mini), TextAlign::LEFT, &x, &y, &id(w_album), &h);
-          it.print(id(s_album), 21, id(font_mini), get_light_color(id(light_album)), id(current_media_album).c_str());
+          if (id(w_album) == 0) it.get_text_bounds(0, 0, id(current_media_album).c_str(), id(now_playing_album), TextAlign::LEFT, &x, &y, &id(w_album), &h);
+          it.print(id(s_album), 21, id(now_playing_album), get_light_color(id(light_album)), id(current_media_album).c_str());
           if (update_tick) { if (id(h_album) > 0) id(h_album)--; else { id(s_album)--; if (id(s_album) < (22 - id(w_album))) id(s_album) = 64; if (id(s_album) == 22) id(h_album) = 80; } }
         }
         it.end_clipping();
