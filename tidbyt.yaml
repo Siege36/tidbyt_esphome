@@ -70,7 +70,7 @@ logger:
 
 api:
   encryption:
-    key: "p4L/rMBS8NVCeADQU02tCLwizRsyva1ZnUJjOLceMhk="
+    key: !secret tidbyt_key
   services:
     - service: update_media
       variables:
